@@ -6,10 +6,6 @@
 #include "igrflib.h"
 #include "genmag.h"
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 //#define DEBUG 1
 /* TO DO: should these stuff go in igrflib.h? */
 
@@ -22,7 +18,7 @@ struct {
 	int second;
 	int dayno;
 	int daysinyear;
-} igrf_date = {-1,-1,-1,-1,-1,-1,-1};
+} igrf_date = {-1,-1,-1,-1,-1,-1,-1,-1};
 
 struct {
 	double ctcl;
@@ -73,7 +69,7 @@ void pause(void)
 ;   k    0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 ...
 ;
 ; CALLING SEQUENCE:
-;       err = IGRF_loadcoeffs(filename);
+;       err = IGRF_loadcoeffs();
 ;     
 ;     Input Arguments:  
 ;       filename      - name of file which contains IGRF coefficients; default
@@ -85,13 +81,14 @@ void pause(void)
 ;+-----------------------------------------------------------------------------
 */
 
-int IGRF_loadcoeffs(char *filename)
+int IGRF_loadcoeffs(void)
 {
-	int i,j,k,l,m,n, ll,mm;
+	int k,l,m,n, ll,mm;
 	int fac, len;
 	int iyear, nyear;
 	int dgrf[MAXNYR], epoch[MAXNYR];
 	char jnk;
+	char *filename;
 	char header[2][MAXSTR], line[MAXSTR];
 	double fyear;
 	double coef, sv;
@@ -102,7 +99,17 @@ int IGRF_loadcoeffs(char *filename)
 	printf("IGRF_loadceoffs\n");
 	#endif
 
-	#if DEBUG > 0
+	/* file containing the IGRF coefficients */
+	if ((filename = getenv("IGRF_COEFFS")) == NULL) {
+		printf("\n");
+		printf("***************************************************************\n");
+		printf("* You MUST set the environment variable IGRF_COEFFS \n");
+		printf("***************************************************************\n");
+		return (-99);
+	}
+//	strcpy(filename,getenv("IGRF_COEFFS"));
+
+	#if DEBUG > 1
 	printf("Schmidt quasi-normalization factors\n");
 	printf("===================================\n\n");
 	#endif
@@ -131,7 +138,7 @@ int IGRF_loadcoeffs(char *filename)
 			/* Winch 2004 */
     	Slm[k] = Slm[n] = sqrt(fac*fctrl[l-m]/fctrl[l+m]);
 
-			#if DEBUG > 0
+			#if DEBUG > 1
     	printf("$ %2d %2d %2d %e %e %e\n", l, m, k, fctrl[l-m],fctrl[l+m],Slm[k]);
     	printf("$ %2d %2d %2d %e %e %e\n", l,-m, n, fctrl[l-m],fctrl[l+m],Slm[n]);
 			#endif
@@ -165,7 +172,7 @@ int IGRF_loadcoeffs(char *filename)
 		m++;
 	}
 	len = m;
-	#if DEBUG > 0
+	#if DEBUG > 1
 	fprintf(stderr, "%s\n", line);
 	#endif
 
@@ -178,7 +185,7 @@ int IGRF_loadcoeffs(char *filename)
 		fprintf(stderr, "Too many years in file: %d\n", nyear);
 		return (-2);
 	}
-	#if DEBUG > 0
+	#if DEBUG > 1
 	fprintf(stderr, "%d years\n", nyear);
 	#endif
 
@@ -190,7 +197,7 @@ int IGRF_loadcoeffs(char *filename)
 			case 'G': iyear++; break;
 		}
 	}
-	#if DEBUG > 0
+	#if DEBUG > 1
 	for (m=0; m<nyear; m++) fprintf(stderr, "%d\n", dgrf[m]);
 	#endif
 
@@ -205,12 +212,12 @@ int IGRF_loadcoeffs(char *filename)
 	for (m=0; m<nyear; m++) {
 		fscanf(fp, "%lf", &fyear);
 		epoch[m] = (int)floor(fyear);
-		#if DEBUG > 0
+		#if DEBUG > 1
 		fprintf(stderr, "%8.2lf\n", fyear);
 		#endif
 	}
 
-	#if DEBUG > 0
+	#if DEBUG > 1
 	for (m=0; m<nyear; m++) fprintf(stderr, "%4d\n", epoch[m]);
 	#endif
 
@@ -226,7 +233,7 @@ int IGRF_loadcoeffs(char *filename)
 		for (n=0; n<nyear; n++) {
 			fscanf(fp, "%lf", &coef);			/* coefficient */
 			IGRF_coef_set[n][k] = coef * Slm[k];		/* NORMALIZE */
-			#if DEBUG > 0
+			#if DEBUG > 1
 			fprintf(stderr, "%d %d %d %d %f\n", k, l, n, 0, IGRF_coef_set[n][k]);
 			#endif
 		}
@@ -242,7 +249,7 @@ int IGRF_loadcoeffs(char *filename)
 			for (n=0; n<nyear; n++) {
 				fscanf(fp, "%lf", &coef);			/* coefficient */
 				IGRF_coef_set[n][k] = coef * Slm[k];		/* NORMALIZE */
-				#if DEBUG > 0
+				#if DEBUG > 1
 				fprintf(stderr, "%d %d %d %d %f\n", k, l, n, m, IGRF_coef_set[n][k]);
 				#endif
 			}
@@ -256,7 +263,7 @@ int IGRF_loadcoeffs(char *filename)
 			for (n=0; n<nyear; n++) {
 				fscanf(fp, "%lf", &coef);			/* coefficient */
 				IGRF_coef_set[n][k] = coef * Slm[k];		/* NORMALIZE */
-				#if DEBUG > 0
+				#if DEBUG > 1
 				fprintf(stderr, "%d %d %d %d %f\n", k, l, n, -m, IGRF_coef_set[n][k]);
 				#endif
 			}
@@ -268,19 +275,19 @@ int IGRF_loadcoeffs(char *filename)
 			if (jnk == 13) fscanf(fp, "%c", &jnk);	/* <LF> */
 		}
 
-		#if DEBUG > 0
+		#if DEBUG > 2
 		pause();
 		#endif
 	}
 	fclose(fp);
 
-	#if DEBUG > 0
+	#if DEBUG > 1
 	for (n=0; n<nyear; n++)
 		fprintf(stderr, "%04d %f\n", epoch[n], IGRF_coef_set[n][0]);
 	pause();
 	#endif
 
-	#if DEBUG > 0
+	#if DEBUG > 1
 	fprintf(stderr, "%d\n", (2000-1900)/5);
 	/* print coefficients in order */
 	for (l=0; l<=IGRF_ORDER; l++) {
@@ -338,7 +345,7 @@ int IGRF_loadcoeffs(char *filename)
 int IGRF_Plm(double theta, int order, double *plmval, double *dplmval) {
   int l,m,k,n,p;
   double a,b;				/* factors */
-	double st,ct,kfac;
+	double st,ct;
 
 	if (order > IGRF_ORDER) return (-1);
 
@@ -356,12 +363,12 @@ int IGRF_Plm(double theta, int order, double *plmval, double *dplmval) {
 		dplmval[k] = dplmval[n]*st + plmval[n]*ct;
 		*/
 		/* numerical recipies in C */
-//		a = 1-2*l;		/* reverse order to remove Condon-Shortley phase */
+		/* a = 1-2*l;*/		/* reverse order to remove Condon-Shortley phase */
 		a = 2*l-1;
     plmval[k]  = a*plmval[n]*st;
 		dplmval[k] = a*(dplmval[n]*st + plmval[n]*ct);
 
-		#if DEBUG > 0
+		#if DEBUG > 1
     printf("%2d %3d %e %e\n", l, k, plmval[k], dplmval[k]);
 		#endif
   }
@@ -396,7 +403,7 @@ int IGRF_Plm(double theta, int order, double *plmval, double *dplmval) {
       	plmval[k]  = (a*ct*plmval[n] - b*plmval[p])/(l-m);
       	dplmval[k] = (a*(ct*dplmval[n] - st*plmval[n]) - b*dplmval[p])/(l-m);
 			}
-			#if DEBUG > 0
+			#if DEBUG > 1
       printf("%2d %2d %3d %e %e\n", l, m, k, plmval[k], dplmval[k]);
 			#endif
     }
@@ -658,38 +665,35 @@ int IGRF_interpolate_coefs(void) {
 int IGRF_SetDateTime(int year, int month, int day,
 											int hour, int minute, int second)
 {
-	char *fname;
-	int err;
+	int err = 0;
 
 	/* load coefficients if not already loaded */
-	if (igrf_date.year != year || igrf_date.month != month || igrf_date.day != day) {
-		fname = getenv("IGRF_12_COEFFS");
-		if (fname==NULL) {
-			err = IGRF_loadcoeffs(IGRF_FILE);
-		} else {
-			err = IGRF_loadcoeffs(fname);
-		}
-	}
-
+	if (igrf_date.year < 0)
+		err = IGRF_loadcoeffs();
 
 	if (err) return (err);
 
-	igrf_date.year   = year;
-	igrf_date.month  = month;
-	igrf_date.day    = day;
-	igrf_date.hour   = hour;
-	igrf_date.minute = minute;
-	igrf_date.second = second;
-	igrf_date.dayno  = dayno(year,month,day,&(igrf_date.daysinyear));
+	if (igrf_date.year != year || igrf_date.month != month ||
+			igrf_date.day != day || igrf_date.hour != hour ||
+			igrf_date.minute != minute || igrf_date.second != second) {
 
-	#if DEBUG > 0
-	printf("IGRF_SetDateTime\n");
-	printf("%03d: %04d%02d%02d %02d%02d:%02d\n",
-				igrf_date.dayno, igrf_date.year, igrf_date.month, igrf_date.day,
-				igrf_date.hour, igrf_date.minute, igrf_date.second);
-	#endif
+		igrf_date.year   = year;
+		igrf_date.month  = month;
+		igrf_date.day    = day;
+		igrf_date.hour   = hour;
+		igrf_date.minute = minute;
+		igrf_date.second = second;
+		igrf_date.dayno  = dayno(year,month,day,&(igrf_date.daysinyear));
 
-	err = IGRF_interpolate_coefs();
+		#if DEBUG > 0
+		printf("IGRF_SetDateTime\n");
+		printf("%03d: %04d%02d%02d %02d%02d:%02d\n",
+					igrf_date.dayno, igrf_date.year, igrf_date.month, igrf_date.day,
+					igrf_date.hour, igrf_date.minute, igrf_date.second);
+		#endif
+
+		err = IGRF_interpolate_coefs();
+	}
 
 	return (err);
 }
@@ -754,21 +758,14 @@ int IGRF_GetDateTime(int *year, int *month, int *day,
 int IGRF_SetNow(void)
 {
 	/* current time */
-	char *fname;
-	int err,dyno;
-	double fyear;
+	int err = 0;
+	int dyno;
 	time_t now;
 	struct tm *tm_now;
 
 	/* load coefficients if not already loaded */
-	if (igrf_date.year != (*tm_now).tm_year + 1900 || igrf_date.month  != (*tm_now).tm_mon  + 1 || igrf_date.day != (*tm_now).tm_mday) {
-		fname = getenv("IGRF_12_COEFFS");
-		if (fname==NULL) {
-			err = IGRF_loadcoeffs(IGRF_FILE);
-		} else {
-			err = IGRF_loadcoeffs(fname);
-		}
-	}
+	if (igrf_date.year < 0)
+		err = IGRF_loadcoeffs();
 
 	if (err) return (err);
 
@@ -1139,10 +1136,10 @@ int mag2geo(const double xyzm[], double xyzg[]) {
 int geod2geoc(double lat, double lon, double alt, double rtp[]) {
 
 	double a,b,f,a2,b2,st,ct,one,two,three,rho,cd,sd;
-	double r,theta,phi;
+	double r,theta;
 
 	a = 6378.1370;							/* semi-major axis */
-	f = 1./298.257223563;			/* flattening */
+	f = 1./298.257223563;				/* flattening */
 	b = a*(1. -f);							/* semi-minor axis */
 	a2 = a*a;
 	b2 = b*b;
@@ -1195,7 +1192,7 @@ int plh2xyz(double lat, double lon, double alt, double rtp[])
 	double a,b,f,ee,st,ct,sp,cp,N,Nac,x,y,z,r,t;
 
 	a = 6378.1370;							/* semi-major axis */
-	f = 1./298.257223563;			/* flattening */
+	f = 1./298.257223563;				/* flattening */
 	b = a*(1. -f);							/* semi-minor axis */
   ee = (2. - f) * f;
 
@@ -1366,15 +1363,14 @@ int AACGM_v2_Newval(double xyz[], int idir, double ds, double k[]) {
 */
 
 int AACGM_v2_RK45(double xyz[], int idir, double *ds, double eps, int code) {
-	char ch;
 	int k;
-	double bmag,tmp,rr,delt;
+	double bmag,rr,delt;
 	double k1[3],k2[3],k3[3],k4[3],k5[3],k6[3], w1[3],w2[3];
 	double rtp[3], brtp[3], bxyz[3];
 	double xyztmp[3];
 
-//function test_aacgm_rk45, x,y,z, idir, ds, eps, noadapt=noadapt, $
-//					max_ds=max_ds, RRds=RRds
+/*function test_aacgm_rk45, x,y,z, idir, ds, eps, noadapt=noadapt, $
+ *					max_ds=max_ds, RRds=RRds*/
 
 /*
 	; if noadapt is set then just do straight RK4 and ds is spatial step size
